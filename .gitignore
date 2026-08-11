@@ -1,0 +1,18 @@
+# Środowisko wirtualne
+.venv/
+
+# Sekrety i klucze API
+.env
+
+# Cache Pythona i narzędzi
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+
+# Baza danych ChromaDB
+.chroma/
+
+# Pliki IDE
+.vscode/
+.idea/
