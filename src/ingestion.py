@@ -7,33 +7,36 @@ from langchain_chroma import Chroma
 
 from src.config import CHROMA_DIR, STYLEGUIDE_PATH, SRC_DIR, EMBEDDING_MODEL_NAME
 
-
 def run_ingestion():
-    print("Rozpoczynam proces indeksowania (Ingestion)...")
+    """
+    Launches the ingestion process.
+    It takes the STYLEGUIDE.md file and code from the src/ folder and saves them in the ChromaDB vector database.
+    """
+    print("Starting the ingestion process...")
 
     documents = []
 
-    # 1. Ładowanie pliku STYLEGUIDE.md
+    # 1. Loading the STYLEGUIDE.md file
     if STYLEGUIDE_PATH.exists():
-        print(f"Wczytuję wytyczne stylu: {STYLEGUIDE_PATH.name}")
+        print(f"Loading style guidelines: {STYLEGUIDE_PATH.name}")
         styleguide_loader = TextLoader(str(STYLEGUIDE_PATH), encoding="utf-8")
         styleguide_docs = styleguide_loader.load()
         
-        # Oznaczamy w metadanych typ dokumentu (kluczowe dla późniejszego filtrowania)
+        # Marking the document type in the metadata (crucial for later filtering)
         for doc in styleguide_docs:
             doc.metadata["source_type"] = "styleguide"
         
-        # Dzielimy styleguide zwykłym splitterem tekstowym
+        # Splitting the styleguide into chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=30)
         styleguide_chunks = text_splitter.split_documents(styleguide_docs)
         documents.extend(styleguide_chunks)
-        print(f"Utworzono {len(styleguide_chunks)} fragmentów z wytycznych.")
+        print(f"Created {len(styleguide_chunks)} chunks from the guidelines.")
     else:
-        print("Brak pliku STYLEGUIDE.md! Pomiń ten etap.")
+        print("No STYLEGUIDE.md file found! Skipping this step.")
 
-    # 2. Ładowanie kodu źródłowego z folderu src/
+    # 2. Loading the source code from the src/ folder
     if SRC_DIR.exists():
-        print(f"Wczytuję kod źródłowy z: {SRC_DIR.name}/")
+        print(f"Loading source code from: {SRC_DIR.name}/")
         code_loader = DirectoryLoader(
             str(SRC_DIR),
             glob="**/*.py",
@@ -45,7 +48,7 @@ def run_ingestion():
         for doc in code_docs:
             doc.metadata["source_type"] = "code"
 
-        # Dzielimy kod Pythonowy splitterem świadomym składni języka (Language-aware)
+        # Splitting the Python code into chunks using a language-aware splitter
         python_splitter = RecursiveCharacterTextSplitter.from_language(
             language=Language.PYTHON,
             chunk_size=400,
@@ -53,29 +56,29 @@ def run_ingestion():
         )
         code_chunks = python_splitter.split_documents(code_docs)
         documents.extend(code_chunks)
-        print(f"Utworzono {len(code_chunks)} fragmentów kodu Python.")
+        print(f"Created {len(code_chunks)} chunks of Python code.")
     else:
-        print("Brak katalogu src/!")
+        print("No src/ directory found!")
 
     if not documents:
-        print("Brak dokumentów do zaindeksowania.")
+        print("No documents to index.")
         return
 
-    # 3. Inicjalizacja darmowego modelu embeddingów lokalnych
-    print(f"Ładowanie modelu embeddingów: {EMBEDDING_MODEL_NAME}...")
+    # 3. Initializing the free local embedding model
+    print(f"Loading embedding model: {EMBEDDING_MODEL_NAME}...")
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
 
-    # 4. Tworzenie/aktualizacja bazy wektorowej ChromaDB
-    print(f"Zapisywanie wektorów w bazie ChromaDB pod ścieżką: {CHROMA_DIR}...")
+    # 4. Creating/updating the ChromaDB vector database
+    print(f"Saving vectors to ChromaDB database at: {CHROMA_DIR}...")
     
-    # Chroma.from_documents automatycznie generuje embeddingi i zapisuje je na dysku
+    # Chroma.from_documents automatically generates embeddings and saves them to disk
     vector_store = Chroma.from_documents(
         documents=documents,
         embedding=embeddings,
         persist_directory=str(CHROMA_DIR)
     )
 
-    print("Indeksowanie zakończone sukcesem!")
+    print("Indexing completed successfully!")
 
 
 if __name__ == "__main__":
